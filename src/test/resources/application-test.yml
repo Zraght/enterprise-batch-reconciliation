@@ -1,0 +1,9 @@
+# Used by automated tests only (profile "test"; it lives on the test classpath, not in the shipped jar).
+# The seed endpoint is enabled under this profile.
+reconciliation:
+  processing:
+    chunk-size: 50
+    recovery-enabled: false
+    stale-after: PT2M
+  matching:
+    settlement-lag: PT0S

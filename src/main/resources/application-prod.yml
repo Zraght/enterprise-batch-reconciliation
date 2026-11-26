@@ -1,0 +1,20 @@
+# Production.
+#  - The seed endpoint is NOT registered (it is restricted to the dev and test profiles).
+#  - An API key is mandatory: the application refuses to start without API_KEY (>= 16 characters).
+#  - Swagger UI is off unless explicitly enabled; health details are never shown.
+reconciliation:
+  security:
+    api-key-required: true
+springdoc:
+  swagger-ui:
+    enabled: ${SWAGGER_UI_ENABLED:false}
+  api-docs:
+    enabled: ${SWAGGER_UI_ENABLED:false}
+management:
+  endpoint:
+    health:
+      show-details: never
+logging:
+  level:
+    root: WARN
+    com.joseantonio.reconciliation: INFO

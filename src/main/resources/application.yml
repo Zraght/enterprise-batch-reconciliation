@@ -1,0 +1,112 @@
+# =====================================================================================================
+# Base configuration. Secrets come from environment variables (see .env.example); nothing sensitive here.
+# Profiles: dev | test | prod.  NO profile is active by default on purpose: the seed endpoint (synthetic data) exists only
+# under dev and test, so it must be opted into explicitly (SPRING_PROFILES_ACTIVE=dev) and can never appear by omission.
+# =====================================================================================================
+spring:
+  application:
+    name: enterprise-batch-reconciliation
+  datasource:
+    url: ${DB_URL:jdbc:sqlserver://localhost:1433;databaseName=ReconciliationDB;encrypt=true;trustServerCertificate=true}
+    username: ${DB_USERNAME:reconciliation_app}
+    password: ${DB_PASSWORD}            # mandatory: no default on purpose
+    hikari:
+      # Every running batch uses up to 2 connections at once (audit streams a cursor while it writes alerts),
+      # so the pool must satisfy: maximum-pool-size >= 2 * reconciliation.processing.max-concurrent-batches + 4
+      maximum-pool-size: ${DB_POOL_SIZE:16}
+      minimum-idle: 2
+      connection-timeout: 20000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none                    # schema is owned by Flyway; Hibernate must never alter it
+    # NOTE: do NOT set hibernate.jdbc.time_zone here. All DATETIME2 columns hold UTC wall-clock time and the code maps them
+    # to LocalDateTime. With jdbc.time_zone=UTC Hibernate interprets a LocalDateTime in the JVM's zone and then shifts it
+    # to UTC, so on a JVM that is not in UTC (e.g. America/Lima) the columns written through JPA would disagree with the
+    # ones written through JDBC/SQL by the JVM's offset. See ReconciliationApplication (JVM zone is forced to UTC).
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    validate-on-migrate: true
+    out-of-order: false
+  servlet:
+    multipart:
+      max-file-size: ${UPLOAD_MAX_FILE_SIZE:512MB}
+      max-request-size: ${UPLOAD_MAX_FILE_SIZE:512MB}
+  jackson:
+    default-property-inclusion: non_null
+    deserialization:
+      fail-on-unknown-properties: true
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  error:                         # never expose messages, stack traces or binding details in the default error page
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+    include-exception: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+
+reconciliation:
+  storage:
+    directory: ${RECONCILIATION_STORAGE_DIR:./data/uploads}
+  processing:
+    chunk-size: 1000                    # records per transaction in every phase (1..5000)
+    max-concurrent-batches: 2           # batches processed at the same time on this node
+    virtual-threads: true               # I/O bound, long-running jobs: see docs/ARCHITECTURE.md
+    max-invalid-ratio: 0.50             # file rejected when more than this fraction of its records is invalid
+    stale-after: PT5M                   # PROCESSING without heartbeat for this long => crashed => re-queued
+    recovery-interval: PT30S
+    recovery-enabled: true
+    recovery-limit: 100
+  matching:
+    # Reconciliation scope: a ledger movement is reported as "missing from the file" only once the file's settlement period
+    # extends past booking time + this lag. Before that it is pending settlement (deferred), not a discrepancy.
+    # PT0S = same-day settlement, P1D = T+1 (default). See docs/ARCHITECTURE.md.
+    settlement-lag: ${RECONCILIATION_SETTLEMENT_LAG:P1D}
+  security:
+    # Shared secret expected in the X-API-Key header. Blank = authentication disabled (dev/test only).
+    # The prod profile sets api-key-required=true: the application will not start without a key of >= 16 characters.
+    api-key: ${API_KEY:}
+    api-key-required: false
+  audit:
+    duplicate-window: PT30S             # strictly less than this => temporal duplicate
+    thresholds:                         # Corporate Threshold rule: limit per account type and currency
+      RETAIL:
+        PEN: 10000.00
+        USD: 3000.00
+      BUSINESS:
+        PEN: 100000.00
+        USD: 30000.00
+      CORPORATE:
+        PEN: 500000.00
+        USD: 150000.00
+    operating-hours:                    # Unusual Transaction Time rule
+      zone: America/Lima
+      opens-at: "06:00"
+      closes-at: "22:00"
+      high-value:                       # "high value" threshold per currency
+        PEN: 5000.00
+        USD: 1500.00
+
+logging:
+  level:
+    root: INFO
+    com.joseantonio.reconciliation: INFO

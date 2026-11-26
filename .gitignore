@@ -1,0 +1,35 @@
+# Build output
+target/
+*.class
+*.jar
+*.war
+
+# IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.classpath
+.project
+.settings/
+.factorypath
+nbproject/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Runtime data
+logs/
+*.log
+data/
+*.zip
+
+# Secrets: never commit real credentials
+.env
+*.env
+!.env.example
+application-local.yml
+application-local.properties

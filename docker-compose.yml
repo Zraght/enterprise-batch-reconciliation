@@ -1,0 +1,37 @@
+# Local SQL Server for development. Credentials come from your .env file (see .env.example).
+#   docker compose up -d        -> starts SQL Server and creates ReconciliationDB + the application login
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: reconciliation-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD:?Set SA_PASSWORD in .env}
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD:?Set SA_PASSWORD in .env}
+      APP_PASSWORD: ${DB_APP_PASSWORD:?Set DB_APP_PASSWORD in .env}
+    volumes:
+      - ./database:/scripts:ro
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - /opt/mssql-tools18/bin/sqlcmd -C -S sqlserver -U sa -P "$$MSSQL_SA_PASSWORD" -v APP_PASSWORD="$$APP_PASSWORD" -i /scripts/01_create_database.sql
+    restart: "no"
+
+volumes:
+  sqlserver-data:

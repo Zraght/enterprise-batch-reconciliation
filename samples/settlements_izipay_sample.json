@@ -1,0 +1,5 @@
+[
+  { "external_ref": "IZ-0001", "amount": 100.10, "currency": "PEN", "settlement_timestamp": "2026-03-10T15:03:00Z" },
+  { "external_ref": "IZ-0002", "amount": "200.00", "currency": "USD", "settlement_timestamp": "2026-03-10T15:04:00-05:00" },
+  { "external_ref": "IZ-0004", "amount": 15.5, "currency": "PEN", "settlement_timestamp": "2026-03-10T15:05:00Z" }
+]

@@ -1,0 +1,4 @@
+external_ref,amount,currency,settlement_timestamp
+NBZ-0005,420.00,PEN,2026-03-11T10:00:00Z
+NBZ-0013,90.00,PEN,2026-03-11T10:05:00Z
+NBZ-0015,12.00,PEN,2026-03-11T10:10:00Z
